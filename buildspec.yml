@@ -1,0 +1,77 @@
+version: 0.2
+
+# 环境变量
+env:
+  variables:
+    APP_NAME: "my-python-app"
+    PYTHON_VERSION: "3.9"
+    
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+    commands:
+      - echo "🔧 Installing build dependencies..."
+      - pip3 install --upgrade pip setuptools wheel
+      - echo "Python version:" $(python3 --version)
+      - echo "Pip version:" $(pip3 --version)
+      
+  pre_build:
+    commands:
+      - echo "🔍 Pre-build phase started on $(date)"
+      - echo "Current directory:" $(pwd)
+      - echo "Files in directory:" $(ls -la)
+      
+      # 语法检查
+      - echo "🧪 Checking Python syntax..."
+      - python3 -m py_compile app.py
+      - echo "✅ Syntax check passed"
+      
+      # 安装依赖（如果有requirements.txt）
+      - |
+        if [ -f "requirements.txt" ]; then
+          echo "📦 Installing Python dependencies..."
+          pip3 install -r requirements.txt
+          echo "✅ Dependencies installed"
+        else
+          echo "ℹ️ No requirements.txt found, skipping dependency installation"
+        fi
+      
+  build:
+    commands:
+      - echo "🏗️ Build phase started on $(date)"
+      
+      # 运行测试（如果有）
+      - echo "🧪 Running tests..."
+      - |
+        if [ -f "test_app.py" ]; then
+          python3 -m pytest test_app.py -v
+          echo "✅ Tests passed"
+        else
+          echo "ℹ️ No tests found, skipping test execution"
+        fi
+      
+      # 创建版本信息文件
+      - echo "📝 Creating version info..."
+      - echo "{\"build_time\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"commit\":\"$CODEBUILD_RESOLVED_SOURCE_VERSION\"}" > version.json
+      
+      - echo "✅ Build phase completed successfully"
+      
+  post_build:
+    commands:
+      - echo "📤 Post-build phase started on $(date)"
+      - echo "🎯 Preparing deployment artifacts..."
+      - echo "📁 Final directory contents:"
+      - ls -la
+      - echo "✅ Post-build phase completed"
+
+# 构建产物
+artifacts:
+  files:
+    - '**/*'
+  name: $APP_NAME-build-$(date +%Y%m%d-%H%M%S)
+  
+# 缓存（可选，加速构建）
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'

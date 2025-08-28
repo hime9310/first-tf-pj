@@ -1,0 +1,56 @@
+version: 0.0
+os: linux
+
+# 文件部署配置
+files:
+  - source: /
+    destination: /opt/my-python-app
+    
+# 文件权限配置
+permissions:
+  - object: /opt/my-python-app
+    owner: ubuntu
+    group: ubuntu
+    mode: 755
+    type:
+      - directory
+      
+  - object: /opt/my-python-app/app.py
+    owner: ubuntu
+    group: ubuntu
+    mode: 755
+    type:
+      - file
+      
+  - object: /opt/my-python-app/scripts
+    owner: ubuntu
+    group: ubuntu
+    mode: 755
+    type:
+      - directory
+
+# 部署生命周期钩子
+hooks:
+  # 安装前：停止旧版本服务
+  BeforeInstall:
+    - location: scripts/stop_server.sh
+      timeout: 300
+      runas: root
+      
+  # 安装后：安装依赖和配置
+  AfterInstall:
+    - location: scripts/install_dependencies.sh
+      timeout: 300
+      runas: root
+      
+  # 启动应用
+  ApplicationStart:
+    - location: scripts/start_server.sh
+      timeout: 300
+      runas: root
+      
+  # 验证部署是否成功
+  ValidateService:
+    - location: scripts/validate_service.sh
+      timeout: 300
+      runas: ubuntu
