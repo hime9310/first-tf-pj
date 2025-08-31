@@ -63,7 +63,7 @@ class HealthHandler(BaseHTTPRequestHandler):
         response = {
             'message': 'Hello World from CodePipeline!',
             'timestamp': datetime.now().isoformat(),
-            'version': '1.0.2',
+            'version': '1.0.4-fixed-permissions',
             'environment': os.environ.get('ENV', 'production'),
             'hostname': socket.gethostname(),
             'status': 'success',
