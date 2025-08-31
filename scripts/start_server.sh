@@ -72,24 +72,39 @@ systemctl enable my-python-app
 echo "サービスを開始しています..."
 systemctl start my-python-app
 
-# サービス開始の待機と確認
+# サービス開始の待機と確認（より短い間隔でチェック）
 echo "サービスの開始を待機しています..."
-sleep 3
 
-# 段階的な確認
-for i in {1..10}; do
+# 段階的な確認（1秒間隔で15回）
+for i in {1..15}; do
     if systemctl is-active --quiet my-python-app; then
-        echo "サービスが正常に開始されました (試行 $i/10)"
+        echo "サービスが正常に開始されました (${i}秒後に確認完了)"
+        
+        # 追加でポートの確認
+        echo "ポートの開放を確認しています..."
+        for j in {1..5}; do
+            if netstat -tuln 2>/dev/null | grep -q ":8000" || ss -tuln 2>/dev/null | grep -q ":8000"; then
+                echo "ポート8000が正常に開放されました (${j}秒後に確認完了)"
+                break
+            else
+                echo "ポート開放を待機中... (${j}/5秒)"
+                sleep 1
+            fi
+        done
         break
     else
-        echo "サービス開始を待機中... (試行 $i/10)"
-        sleep 2
+        echo "サービス開始を待機中... (${i}/15秒)"
+        sleep 1
     fi
     
-    if [ $i -eq 10 ]; then
-        echo "サービスの開始に失敗しました"
+    if [ $i -eq 15 ]; then
+        echo "サービスの開始に失敗しました（15秒タイムアウト）"
+        echo "詳細なエラー情報:"
         systemctl status my-python-app --no-pager -l
+        echo "最新のログ:"
         journalctl -u my-python-app --no-pager -l -n 20
+        echo "ファイル権限確認:"
+        ls -la /opt/my-python-app/sampl-app.py
         exit 1
     fi
 done

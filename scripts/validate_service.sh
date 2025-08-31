@@ -8,84 +8,103 @@ set -e
 validate_service_status() {
     echo "1. systemdサービス状態を確認しています..."
     
-    # サービスの完全起動を待機
+    # サービスの段階的起動確認
     echo "   サービスの準備完了を待機しています..."
-    sleep 8
     
-    if systemctl is-active --quiet my-python-app; then
-        echo "   ✓ サービスがアクティブで実行中です"
-        systemctl status my-python-app --no-pager -l | head -10
-    else
-        echo "   ✗ サービスが実行されていません"
-        systemctl status my-python-app --no-pager -l
-        return 1
-    fi
+    for i in {1..15}; do
+        if systemctl is-active --quiet my-python-app; then
+            echo "   ✓ サービスがアクティブで実行中です (${i}秒後に確認完了)"
+            systemctl status my-python-app --no-pager -l | head -8
+            return 0
+        else
+            echo "   待機中... (${i}/15秒)"
+            sleep 1
+        fi
+    done
+    
+    echo "   ✗ サービスが15秒以内に起動しませんでした"
+    echo "   詳細なサービス状態:"
+    systemctl status my-python-app --no-pager -l
+    echo "   最新のログ:"
+    journalctl -u my-python-app --no-pager -l -n 10
+    return 1
 }
 
 validate_port_listening() {
     echo "2. ポート8000がリスニング中かを確認しています..."
     
-    # ポートの確認（複数回試行）
-    for i in {1..5}; do
-        if netstat -tuln 2>/dev/null | grep -q ":8000"; then
-            echo "   ✓ ポート8000が開放されリスニング中です"
+    # ポートの確認（より頻繁にチェック）
+    for i in {1..10}; do
+        if netstat -tuln 2>/dev/null | grep -q ":8000" || ss -tuln 2>/dev/null | grep -q ":8000"; then
+            echo "   ✓ ポート8000が開放されリスニング中です (${i}秒後に確認完了)"
+            echo "   ポート詳細:"
+            netstat -tuln 2>/dev/null | grep ":8000" || ss -tuln 2>/dev/null | grep ":8000"
             return 0
         else
-            echo "   待機中... (試行 $i/5)"
-            sleep 3
+            echo "   待機中... (${i}/10秒)"
+            sleep 1
         fi
     done
     
-    echo "   ✗ ポート8000が開放されていません"
+    echo "   ✗ ポート8000が10秒以内に開放されませんでした"
     echo "   現在リスニング中のポート:"
-    netstat -tuln 2>/dev/null | grep LISTEN | head -10
+    netstat -tuln 2>/dev/null | grep LISTEN | head -5
+    echo "   プロセス確認:"
+    ps aux | grep sampl-app.py | grep -v grep
     return 1
 }
 
 validate_http_endpoints() {
     echo "3. HTTPエンドポイントをテストしています..."
     
-    max_attempts=6
+    max_attempts=10
     attempt=1
     
     while [ $attempt -le $max_attempts ]; do
         echo "   試行 $attempt/$max_attempts: メインエンドポイントをテスト中..."
         
-        if curl -f -s -m 10 http://localhost:8000 > /dev/null; then
+        # より短いタイムアウトで複数回試行
+        if curl -f -s -m 5 --connect-timeout 3 http://localhost:8000 > /dev/null; then
             echo "   ✓ メインエンドポイントが正常に応答しています"
             
             # レスポンス内容の取得と表示
             echo "   サンプルレスポンス:"
-            response=$(curl -s -m 5 http://localhost:8000)
+            response=$(curl -s -m 3 http://localhost:8000)
             if command -v jq > /dev/null 2>&1; then
-                echo "$response" | jq . | head -15
+                echo "$response" | jq . | head -10
             else
-                echo "$response" | head -15
+                echo "$response" | head -10
             fi
-            break
+            
+            # ヘルスチェックエンドポイントのテスト
+            echo "   ヘルスチェックエンドポイントをテスト中..."
+            if curl -f -s -m 3 --connect-timeout 2 http://localhost:8000/health > /dev/null; then
+                echo "   ✓ ヘルスチェックエンドポイントが正常に応答しています"
+                return 0
+            else
+                echo "   ⚠ ヘルスチェックエンドポイントが応答していません（メインエンドポイントは正常）"
+                return 0  # メインが動作していれば成功とする
+            fi
         else
             echo "   HTTPエンドポイントが応答していません (試行 $attempt/$max_attempts)"
             
             if [ $attempt -eq $max_attempts ]; then
                 echo "   ✗ $max_attempts 回の試行後もHTTPエンドポイントが応答しませんでした"
+                echo "   詳細なデバッグ情報:"
+                echo "   プロセス状態:"
+                ps aux | grep sampl-app.py | grep -v grep
+                echo "   ポート状態:"
+                netstat -tuln | grep 8000
                 echo "   サービスログ:"
-                journalctl -u my-python-app --no-pager -l -n 10
+                journalctl -u my-python-app --no-pager -l -n 15
                 return 1
             fi
             
-            echo "   次の試行まで8秒待機しています..."
-            sleep 8
+            echo "   次の試行まで5秒待機しています..."
+            sleep 5
             attempt=$((attempt + 1))
         fi
     done
-    
-    # ヘルスチェックエンドポイントのテスト
-    echo "   ヘルスチェックエンドポイントをテスト中..."
-    if curl -f -s -m 5 http://localhost:8000/health > /dev/null; then
-        echo "   ✓ ヘルスチェックエンドポイントが正常に応答しています"
-    else
-        echo "   ⚠ ヘルスチェックエンドポイントが応答していません（メインエンドポイントは正常）"
-    fi
 }
 
 validate_logs_and_permissions() {

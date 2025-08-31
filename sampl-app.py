@@ -150,14 +150,19 @@ def main():
     host = '0.0.0.0'
     
     try:
+        # サーバーの作成（より高速な起動のため）
         server = HTTPServer((host, port), HealthHandler)
+        server.timeout = 1  # タイムアウトを短く設定
         
         print(f"[{datetime.now().isoformat()}] サーバーを開始しています")
         print(f"  - アドレス: {host}:{port}")
         print(f"  - エンドポイント: http://localhost:{port}/")
         print(f"  - ヘルスチェック: http://localhost:{port}/health")
         print(f"  - 環境: {os.environ.get('ENV', 'production')}")
-        print("  - 停止するにはCtrl+Cを押してください")
+        print(f"  - PID: {os.getpid()}")
+        
+        # 起動完了の明確な表示
+        print(f"[{datetime.now().isoformat()}] ✓ サーバーが正常に起動しました")
         
         # サーバーの開始
         server.serve_forever()
@@ -165,12 +170,21 @@ def main():
     except OSError as e:
         if e.errno == 98:  # Address already in use
             print(f"[ERROR] ポート{port}は既に使用されています")
+            # 既存のプロセスを確認
+            try:
+                import subprocess
+                result = subprocess.run(['netstat', '-tuln'], capture_output=True, text=True)
+                print(f"[DEBUG] 現在のポート使用状況:\n{result.stdout}")
+            except:
+                pass
             sys.exit(1)
         else:
             print(f"[ERROR] サーバー開始エラー: {e}")
             sys.exit(1)
     except Exception as e:
         print(f"[ERROR] 予期しないエラー: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 if __name__ == '__main__':
