@@ -1,12 +1,12 @@
 version: 0.0
 os: linux
 
-# 文件部署配置
+# ファイルデプロイメント設定
 files:
   - source: /
     destination: /opt/my-python-app
-    
-# 文件权限配置
+
+# ファイル権限設定
 permissions:
   - object: /opt/my-python-app
     owner: ubuntu
@@ -14,14 +14,14 @@ permissions:
     mode: 755
     type:
       - directory
-      
-  - object: /opt/my-python-app/app.py
+
+  - object: /opt/my-python-app/sampl-app.py
     owner: ubuntu
     group: ubuntu
     mode: 755
     type:
       - file
-      
+
   - object: /opt/my-python-app/scripts
     owner: ubuntu
     group: ubuntu
@@ -29,27 +29,27 @@ permissions:
     type:
       - directory
 
-# 部署生命周期钩子
+# デプロイメントライフサイクルフック
 hooks:
-  # 安装前：停止旧版本服务
+  # インストール前：旧バージョンのサービスを停止
   BeforeInstall:
     - location: scripts/stop_server.sh
       timeout: 300
       runas: root
-      
-  # 安装后：安装依赖和配置
+
+  # インストール後：依存関係のインストールと設定
   AfterInstall:
     - location: scripts/install_dependencies.sh
       timeout: 300
       runas: root
-      
-  # 启动应用
+
+  # アプリケーション開始
   ApplicationStart:
     - location: scripts/start_server.sh
       timeout: 300
       runas: root
-      
-  # 验证部署是否成功
+
+  # デプロイメント成功の検証
   ValidateService:
     - location: scripts/validate_service.sh
       timeout: 300

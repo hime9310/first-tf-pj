@@ -1,59 +1,117 @@
-# first-tf-pj
-# My Python App - CodePipeline Demo
+# Python Web アプリケーション - AWS CodePipeline デモ
 
-一个简单的Python Web应用，演示使用AWS CodePipeline进行自动化CI/CD部署。
+AWS CodePipelineを使用した自動CI/CDデプロイメントのデモンストレーション用Pythonアプリケーションです。
 
-## 🎯 项目概述
+## 🎯 このプロジェクトについて
 
-这是一个使用Python的HTTP服务器创建的简单Web应用，通过AWS CodePipeline实现从GitHub到EC2的自动化部署。
+**GitHubからEC2への自動デプロイメント**を実現するCI/CDパイプラインの学習・検証用プロジェクトです。
 
-## 🏗️ 技术栈
+### 何ができるか
+- GitHub にコードをプッシュすると自動的にEC2にデプロイされる
+- シンプルなJSON APIサーバーが稼働する（ポート8000）
+- ヘルスチェック機能でサービス監視ができる
+- 本番環境レベルの安定稼働（systemdサービス化）
 
-- **后端**: Python 3.9+ 
-- **部署**: AWS CodePipeline + CodeBuild + CodeDeploy
-- **基础设施**: AWS EC2 (Ubuntu)
-- **版本控制**: GitHub
+### CI/CDフロー
+```
+GitHub Push → CodePipeline → CodeBuild → CodeDeploy → EC2 → 本番稼働
+```
 
-## 📁 项目结构
-my-python-app/
-├── app.py                    # Python应用主文件
-├── requirements.txt          # Python依赖（可选）
-├── buildspec.yml            # CodeBuild构建配置
-├── appspec.yml              # CodeDeploy部署配置
-├── scripts/                 # 部署脚本
-│   ├── stop_server.sh       # 停止服务
-│   ├── install_dependencies.sh # 安装依赖
-│   ├── start_server.sh      # 启动服务
-│   └── validate_service.sh  # 验证部署
-└── README.md                # 项目文档
+### 設計思想
+- **学習重視**: CI/CDパイプラインの理解を深める
+- **軽量**: 外部依存なし、すぐに動作する
+- **実用的**: 本番環境でも使える品質
 
-## 🚀 功能特性
+## 🛠 技術スタック
 
-- ✅ RESTful API端点 (GET /)
-- ✅ JSON响应格式
-- ✅ 健康检查支持
-- ✅ 详细日志记录
-- ✅ 优雅的服务启停
-- ✅ 自动化部署验证
+| 項目 | 技術 |
+|------|------|
+| **アプリケーション** | Python 3.9+ (標準ライブラリのみ) |
+| **CI/CD** | AWS CodePipeline + CodeBuild + CodeDeploy |
+| **インフラ** | AWS EC2 (Ubuntu) |
+| **ソース管理** | GitHub |
 
-## 📊 API文档
+## 📁 プロジェクト構造
 
-### GET /
+```
+first-tf-pj/
+├── sampl-app.py           # メインアプリケーション
+├── buildspec.yml          # ビルド設定
+├── appspec.yml            # デプロイ設定
+├── scripts/               # デプロイスクリプト
+└── docs/                  # ドキュメント
+```
 
-返回应用状态信息
+## ✨ 主な機能
 
-**响应示例:**
+- **JSON API**: `/` (メイン情報) と `/health` (ヘルスチェック)
+- **自動デプロイ**: GitHubプッシュで自動実行
+- **サービス管理**: systemdによる安定稼働
+- **ログ管理**: 詳細なログ出力とエラーハンドリング
+
+## 🚀 クイックスタート
+
+### 1. ローカルで試す
+```bash
+git clone <repository-url>
+cd first-tf-pj
+python3 sampl-app.py
+```
+→ http://localhost:8000/ でアクセス
+
+### 2. AWS環境にデプロイ
+1. GitHubリポジトリを作成
+2. AWS CodePipelineを設定
+3. EC2インスタンスを準備
+4. コードをプッシュ → 自動デプロイ
+
+### 3. 動作確認
+```bash
+curl http://your-ec2-ip:8000/        # メイン情報
+curl http://your-ec2-ip:8000/health  # ヘルスチェック
+```
+
+**期待されるレスポンス例:**
 ```json
 {
-  "message": "🎉 Hello World from CodePipeline!",
-  "timestamp": "2024-01-15T10:30:00.000Z",
-  "version": "1.0.1",
-  "environment": "production",
-  "hostname": "ip-172-31-32-123",
+  "message": "Hello World from CodePipeline!",
   "status": "success",
-  "deployment_info": {
-    "deployed_at": "2024-01-15 10:29:45",
-    "python_version": "3.9",
-    "platform": "posix"
-  }
+  "deployment_info": { ... }
 }
+```
+
+## 📚 詳細ドキュメント
+
+このREADMEでは概要を説明しています。詳細な情報は以下のドキュメントを参照してください：
+
+### 📖 [USAGE.md - 詳細な使用方法ガイド](./USAGE.md)
+- CI/CDパイプラインの詳細フロー
+- ステップバイステップのデプロイメント手順
+- 運用・監視方法
+- トラブルシューティング
+- 開発者向けガイド
+
+### ⚡ [QUICK_REFERENCE.md - クイックリファレンス](./QUICK_REFERENCE.md)
+- 基本コマンド一覧
+- よくある問題の解決方法
+- 緊急時対応手順
+
+## 📋 前提条件
+
+- AWS アカウント
+- GitHub アカウント
+- EC2 インスタンス（Ubuntu 20.04以上）
+- Python 3.9以上（ローカル開発時）
+
+## 🤝 貢献
+
+プロジェクトへの貢献を歓迎します！
+
+### プルリクエスト前のチェックリスト
+- [ ] `python3 test_app.py` でテストが通ること
+- [ ] `python3 -m py_compile sampl-app.py` で構文チェック完了
+- [ ] ローカルでアプリケーションが正常に動作すること
+- [ ] 変更内容に応じてドキュメントを更新すること
+
+### 開発者向け情報
+詳細な開発ガイドラインは [USAGE.md](./USAGE.md) の「開発者向けガイド」セクションを参照してください。

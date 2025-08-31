@@ -1,35 +1,74 @@
 #!/bin/bash
-echo "🛑 [$(date)] Stopping application..."
+echo "[$(date)] アプリケーションを停止しています..."
 
-# 设置错误时继续执行
+# エラー時も継続実行するよう設定
 set +e
 
-# 停止systemd服务
-echo "📝 Stopping systemd service..."
-systemctl stop my-python-app 2>/dev/null || echo "ℹ️ Service was not running"
-
-# 禁用服务（避免开机自启）
-systemctl disable my-python-app 2>/dev/null || echo "ℹ️ Service was not enabled"
-
-# 强制杀死可能残留的Python进程
-echo "🔍 Killing any remaining Python processes..."
-pkill -f "python3.*app.py" 2>/dev/null || echo "ℹ️ No Python app processes found"
-
-# 等待进程完全停止
-echo "⏱️ Waiting for processes to terminate..."
-sleep 3
-
-# 检查端口是否仍被占用
-if netstat -tuln | grep -q ":8000"; then
-    echo "⚠️ Port 8000 still in use, attempting to free it..."
-    fuser -k 8000/tcp 2>/dev/null || true
-    sleep 2
+# systemdサービスの停止（グレースフル）
+echo "systemdサービスを停止しています..."
+if systemctl is-active --quiet my-python-app; then
+    echo "サービスが実行中です。停止を開始します..."
+    systemctl stop my-python-app
+    
+    # 停止完了を待機（最大30秒）
+    timeout=30
+    while [ $timeout -gt 0 ] && systemctl is-active --quiet my-python-app; do
+        echo "サービス停止を待機中... (残り${timeout}秒)"
+        sleep 2
+        timeout=$((timeout - 2))
+    done
+    
+    if systemctl is-active --quiet my-python-app; then
+        echo "警告: サービスが正常に停止しませんでした。強制終了を試みます..."
+        systemctl kill my-python-app
+        sleep 3
+    fi
+else
+    echo "サービスは実行されていませんでした"
 fi
 
-# 清理旧的日志文件（可选）
-if [ -f "/var/log/my-python-app.log" ]; then
-    echo "🧹 Rotating log file..."
-    mv /var/log/my-python-app.log /var/log/my-python-app.log.old 2>/dev/null || true
+# サービスの無効化（起動時自動開始を防ぐ）
+if systemctl is-enabled --quiet my-python-app 2>/dev/null; then
+    echo "サービスの自動起動を無効化しています..."
+    systemctl disable my-python-app 2>/dev/null
 fi
 
-echo "✅ [$(date)] Application stop completed"
+# 残存プロセスのクリーンアップ
+echo "残存するプロセスをチェックしています..."
+if pgrep -f "python3.*sampl-app.py" > /dev/null; then
+    echo "残存するPythonプロセスを終了しています..."
+    pkill -TERM -f "python3.*sampl-app.py"
+    sleep 5
+    
+    # まだ残っている場合は強制終了
+    if pgrep -f "python3.*sampl-app.py" > /dev/null; then
+        echo "強制終了を実行しています..."
+        pkill -KILL -f "python3.*sampl-app.py"
+        sleep 2
+    fi
+fi
+
+# ポート使用状況の確認とクリーンアップ
+echo "ポート8000の使用状況を確認しています..."
+if netstat -tuln 2>/dev/null | grep -q ":8000"; then
+    echo "ポート8000がまだ使用中です。プロセスを特定して終了します..."
+    lsof -ti:8000 2>/dev/null | xargs -r kill -TERM 2>/dev/null || true
+    sleep 3
+    
+    # まだ使用中の場合は強制終了
+    if netstat -tuln 2>/dev/null | grep -q ":8000"; then
+        echo "強制的にポートを解放しています..."
+        lsof -ti:8000 2>/dev/null | xargs -r kill -KILL 2>/dev/null || true
+        sleep 2
+    fi
+fi
+
+# 最終確認
+if netstat -tuln 2>/dev/null | grep -q ":8000"; then
+    echo "警告: ポート8000がまだ使用されています"
+    netstat -tuln | grep ":8000" || true
+else
+    echo "ポート8000が正常に解放されました"
+fi
+
+echo "[$(date)] アプリケーションの停止が完了しました"

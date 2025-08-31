@@ -1,6 +1,6 @@
 version: 0.2
 
-# 环境变量
+# 環境変数
 env:
   variables:
     APP_NAME: "my-python-app"
@@ -11,67 +11,68 @@ phases:
     runtime-versions:
       python: 3.9
     commands:
-      - echo "🔧 Installing build dependencies..."
+      - echo "ビルド依存関係をインストールしています..."
       - pip3 install --upgrade pip setuptools wheel
-      - echo "Python version:" $(python3 --version)
-      - echo "Pip version:" $(pip3 --version)
+      - echo "Pythonバージョン:" $(python3 --version)
+      - echo "pipバージョン:" $(pip3 --version)
       
   pre_build:
     commands:
-      - echo "🔍 Pre-build phase started on $(date)"
-      - echo "Current directory:" $(pwd)
-      - echo "Files in directory:" $(ls -la)
+      - echo "プリビルドフェーズを開始しました:" $(date)
+      - echo "現在のディレクトリ:" $(pwd)
+      - echo "ディレクトリ内のファイル:" $(ls -la)
       
-      # 语法检查
-      - echo "🧪 Checking Python syntax..."
-      - python3 -m py_compile app.py
-      - echo "✅ Syntax check passed"
+      # 構文チェック
+      - echo "Python構文をチェックしています..."
+      - python3 -m py_compile sampl-app.py
+      - echo "構文チェックが完了しました"
       
-      # 安装依赖（如果有requirements.txt）
+      # 依存関係のインストール（requirements.txtがある場合）
       - |
         if [ -f "requirements.txt" ]; then
-          echo "📦 Installing Python dependencies..."
+          echo "Python依存関係をインストールしています..."
           pip3 install -r requirements.txt
-          echo "✅ Dependencies installed"
+          echo "依存関係のインストールが完了しました"
         else
-          echo "ℹ️ No requirements.txt found, skipping dependency installation"
+          echo "requirements.txtが見つかりません。依存関係のインストールをスキップします"
         fi
       
   build:
     commands:
-      - echo "🏗️ Build phase started on $(date)"
+      - echo "ビルドフェーズを開始しました:" $(date)
       
-      # 运行测试（如果有）
-      - echo "🧪 Running tests..."
+      # テストの実行
+      - echo "テストを実行しています..."
       - |
         if [ -f "test_app.py" ]; then
-          python3 -m pytest test_app.py -v
-          echo "✅ Tests passed"
+          echo "基本テストを実行中..."
+          python3 test_app.py
+          echo "テストが正常に完了しました"
         else
-          echo "ℹ️ No tests found, skipping test execution"
+          echo "テストファイルが見つかりません。テスト実行をスキップします"
         fi
       
-      # 创建版本信息文件
-      - echo "📝 Creating version info..."
+      # バージョン情報ファイルの作成
+      - echo "バージョン情報を作成しています..."
       - echo "{\"build_time\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"commit\":\"$CODEBUILD_RESOLVED_SOURCE_VERSION\"}" > version.json
       
-      - echo "✅ Build phase completed successfully"
+      - echo "ビルドフェーズが正常に完了しました"
       
   post_build:
     commands:
-      - echo "📤 Post-build phase started on $(date)"
-      - echo "🎯 Preparing deployment artifacts..."
-      - echo "📁 Final directory contents:"
+      - echo "ポストビルドフェーズを開始しました:" $(date)
+      - echo "デプロイメント成果物を準備しています..."
+      - echo "最終ディレクトリの内容:"
       - ls -la
-      - echo "✅ Post-build phase completed"
+      - echo "ポストビルドフェーズが完了しました"
 
-# 构建产物
+# ビルド成果物
 artifacts:
   files:
     - '**/*'
   name: $APP_NAME-build-$(date +%Y%m%d-%H%M%S)
   
-# 缓存（可选，加速构建）
+# キャッシュ（オプション、ビルド高速化用）
 cache:
   paths:
     - '/root/.cache/pip/**/*'
